@@ -1,31 +1,35 @@
-import { NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-import { leakRequestsArraySchema } from "@/lib/schemas/requests";
+import { NextResponse } from "next/server";
+import client from "@/lib/mongodb";
 
-const dataDir = path.join(process.cwd(), "data");
-const filePath = path.join(dataDir, "requests.json");
+export async function POST(req: Request) {
+  const url = new URL(req.url);
+  const id = url.pathname.split("/").at(-2); // extracts the [id] param
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: { id: string } },
-) {
-  const id = params.id;
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const parsed = leakRequestsArraySchema.safeParse(JSON.parse(raw));
-    const items = parsed.success ? parsed.data : [];
-    const idx = items.findIndex((r) => r.id === id);
-    if (idx === -1) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-    items[idx] = { ...items[idx], likes: items[idx].likes + 1 };
-    await fs.writeFile(filePath, JSON.stringify(items, null, 2), "utf8");
-    return NextResponse.json(
-      { success: true, item: items[idx] },
-      { status: 200 },
-    );
-  } catch (e) {
-    return NextResponse.json({ error: "Failed to like", e }, { status: 500 });
+  if (!id) {
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
   }
+
+  if (!client) {
+    return NextResponse.json(
+      { error: "Mongo client not initialized" },
+      { status: 500 },
+    );
+  }
+
+  const db = client.db(process.env.MONGODB_DB);
+
+  const res = await db
+    .collection("requests")
+    .findOneAndUpdate(
+      { id },
+      { $inc: { likes: 1 } },
+      { returnDocument: "after", projection: { _id: 0 } },
+    );
+
+  // res itself might be null
+  if (!res || !res.value) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ success: true, item: res.value }, { status: 200 });
 }
