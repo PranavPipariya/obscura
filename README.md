@@ -56,15 +56,9 @@ npm run dev
 
 Create `.env.local`:
 
-```bash
-# Blueprint slug used across submit + leaks pages
-NEXT_PUBLIC_BLUEPRINT_SLUG="DimiDumo/SuccinctZKResidencyInvite@v3"
+go to MongoDB Atlas and generate API key as and save it in .env.local as:
 
-# Optional: where to store JSON files (defaults to <repo>/data)
-DATA_DIR=""
-```
-
-> If `DATA_DIR` is unset, the app writes to `<repo>/data`.
+MONGODB_URI="***********"
 
 ---
 
